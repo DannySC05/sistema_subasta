@@ -35,7 +35,7 @@ public class ClienteEcho2 {
             System.out.print("¿Cuál es el nombre de la máquina servidora? [default: localhost]: ");
             String nombreMaquina = br.readLine();
             if (nombreMaquina == null || nombreMaquina.trim().length() == 0) {
-                nombreMaquina = "localhost";
+                nombreMaquina = "157.151.212.197";
             }
 
             System.out.print("¿Cuál es el número de puerto del servidor? [default: "
