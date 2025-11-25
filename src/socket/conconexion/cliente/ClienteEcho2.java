@@ -26,6 +26,7 @@ public class ClienteEcho2 {
             System.out.println("  JOIN <alias>   -> Registrarse en la subasta");
             System.out.println("  BID <monto>    -> Realizar una oferta");
             System.out.println("  STATUS         -> Ver estado actual de la subasta");
+            System.out.println("  HISTORY        -> Ver historial de subastas finalizadas");
             System.out.println("  QUIT o .       -> Salir del cliente");
             System.out.println("======================================");
             System.out.println();
@@ -34,7 +35,7 @@ public class ClienteEcho2 {
             System.out.print("¿Cuál es el nombre de la máquina servidora? [default: localhost]: ");
             String nombreMaquina = br.readLine();
             if (nombreMaquina == null || nombreMaquina.trim().length() == 0) {
-                nombreMaquina = "157.151.212.197";
+                nombreMaquina = "localhost";
             }
 
             System.out.print("¿Cuál es el número de puerto del servidor? [default: "
@@ -120,26 +121,30 @@ public class ClienteEcho2 {
                         System.out.println("[Servidor] Bienvenido. ID: " + id +
                                 " | Estado actual de la subasta: " + estado);
                     } else {
+                        System.out.println();
                         System.out.println(resp);
                     }
                     break;
                 }
                 case "CURRENT": {
-                    // CURRENT <oferta> <idGanador> <aliasGanador> <segRest> <estado>
-                    if (partes.length >= 6) {
-                        String oferta = partes[1];
-                        String idGanador = partes[2];
-                        String aliasGanador = partes[3];
-                        String segRest = partes[4];
-                        String estado = partes[5];
+                    // CURRENT <idSubasta> <oferta> <idGanador> <aliasGanador> <segRest> <estado>
+                    if (partes.length >= 7) {
+                        String idSubasta = partes[1];
+                        String oferta = partes[2];
+                        String idGanador = partes[3];
+                        String aliasGanador = partes[4];
+                        String segRest = partes[5];
+                        String estado = partes[6];
                         System.out.println();
                         System.out.println("[Estado actual]");
+                        System.out.println("  Subasta: " + idSubasta);
                         System.out.println("  Oferta máxima: " + oferta);
                         System.out.println("  Ganador actual: " + aliasGanador +
                                 " (" + idGanador + ")");
                         System.out.println("  Tiempo restante: " + segRest + " segundos");
                         System.out.println("  Estado: " + estado);
                     } else {
+                        System.out.println();
                         System.out.println(resp);
                     }
                     break;
@@ -154,6 +159,7 @@ public class ClienteEcho2 {
                         System.out.println("[Nueva oferta]");
                         System.out.println("  " + alias + " (" + id + ") ha ofertado " + monto);
                     } else {
+                        System.out.println();
                         System.out.println(resp);
                     }
                     break;
@@ -167,6 +173,7 @@ public class ClienteEcho2 {
                         System.out.println("[Oferta aceptada] Tu oferta de " +
                                 monto + " ahora es la máxima (ID: " + id + ").");
                     } else {
+                        System.out.println();
                         System.out.println(resp);
                     }
                     break;
@@ -178,27 +185,50 @@ public class ClienteEcho2 {
                     if ("MENOR_A_ACTUAL".equalsIgnoreCase(motivo)) {
                         System.out.println("[Oferta rechazada] El monto es menor o igual a la oferta actual.");
                     } else if ("SUBASTA_FINALIZADA".equalsIgnoreCase(motivo)) {
-                        System.out.println("[Oferta rechazada] La subasta ya ha finalizado.");
+                        System.out.println("[Oferta rechazada] La subasta no está activa.");
                     } else {
                         System.out.println("[Oferta rechazada] Motivo: " + motivo);
                     }
                     break;
                 }
-                case "AUCTION_ENDED": {
-                    // AUCTION_ENDED <montoGanador> <idGanador> <aliasGanador>
-                    if (partes.length >= 4) {
-                        String monto = partes[1];
-                        String id = partes[2];
-                        String alias = partes[3];
+                case "AUCTION_STARTED": {
+                    // AUCTION_STARTED <idSubasta>
+                    if (partes.length >= 2) {
+                        String idSubasta = partes[1];
                         System.out.println();
                         System.out.println("======================================");
-                        System.out.println("  SUBASTA FINALIZADA");
+                        System.out.println("  SUBASTA " + idSubasta + " INICIADA");
+                        System.out.println("======================================");
+                    } else {
+                        System.out.println();
+                        System.out.println(resp);
+                    }
+                    break;
+                }
+                case "AUCTION_ENDED": {
+                    // AUCTION_ENDED <idSubasta> <montoGanador> <idGanador> <aliasGanador>
+                    if (partes.length >= 5) {
+                        String idSubasta = partes[1];
+                        String monto = partes[2];
+                        String id = partes[3];
+                        String alias = partes[4];
+                        System.out.println();
+                        System.out.println("======================================");
+                        System.out.println("  SUBASTA " + idSubasta + " FINALIZADA");
                         System.out.println("  Ganador: " + alias + " (" + id + ")");
                         System.out.println("  Oferta ganadora: " + monto);
                         System.out.println("======================================");
                     } else {
+                        System.out.println();
                         System.out.println(resp);
                     }
+                    break;
+                }
+                case "NEW_AUCTION_IN": {
+                    // NEW_AUCTION_IN <segundos>
+                    String seg = (partes.length >= 2) ? partes[1] : "?";
+                    System.out.println();
+                    System.out.println("[Servidor] Nueva subasta disponible en " + seg + " segundos.");
                     break;
                 }
                 case "ERROR": {
@@ -220,6 +250,6 @@ public class ClienteEcho2 {
         }
 
         // Vuelve a mostrar el prompt (para que no se “pierda” el subasta>)
-        System.out.print("subasta> ");
+        //System.out.print("subasta> ");
     }
 }

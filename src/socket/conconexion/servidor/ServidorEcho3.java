@@ -1,4 +1,5 @@
 package socket.conconexion.servidor;
+
 import java.net.ServerSocket;
 import java.net.Socket;
 import socket.conconexion.stream.MiSocketStream;
@@ -9,8 +10,12 @@ import socket.conconexion.stream.MiSocketStream;
  */
 public class ServidorEcho3 {
 
-    // Duración de la subasta: 3 minutos (en milisegundos)
+    // Duración de cada subasta: 3 minutos (en milisegundos)
     private static final long DURACION_SUBASTA_MS = 3 * 60 * 1000;
+    // Cooldown entre subastas: 1 minuto
+    private static final long COOLDOWN_MS = 60 * 1000;
+    // Mínimo de participantes para iniciar una subasta
+    private static final int MIN_PARTICIPANTES = 2;
 
     public static void main(String[] args) {
         int puertoServidor = 8007; // Puerto por defecto
@@ -26,15 +31,15 @@ public class ServidorEcho3 {
             System.out.println("Servidor de subasta iniciado en el puerto " + puertoServidor);
 
             // Estado global de la subasta
-            EstadoSubasta estadoSubasta = new EstadoSubasta();
-            estadoSubasta.iniciar(DURACION_SUBASTA_MS);
+            EstadoSubasta estadoSubasta = new EstadoSubasta(
+                    DURACION_SUBASTA_MS, COOLDOWN_MS, MIN_PARTICIPANTES);
 
             // Gestor de clientes conectados
             GestorClientes gestorClientes = new GestorClientes();
 
-            // Temporizador para cerrar la subasta automáticamente
+            // Temporizador para orquestar las subastas
             TemporizadorSubasta temporizador = new TemporizadorSubasta(
-                    estadoSubasta, gestorClientes, DURACION_SUBASTA_MS);
+                    estadoSubasta, gestorClientes);
             Thread hiloTemporizador = new Thread(temporizador);
             hiloTemporizador.start();
 

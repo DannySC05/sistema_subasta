@@ -14,11 +14,13 @@ public class ClienteConectado {
     private final int puerto;
     private final MiSocketStream socket;
 
+    // Para controlar en qué subasta se ha registrado el cliente
+    private int ultimaSubastaRegistrada = 0;
+
     public ClienteConectado(String idCliente, MiSocketStream socket) {
         this.idCliente = idCliente;
         this.socket = socket;
 
-        // Se obtiene la IP y el puerto remoto a partir del socket
         InetAddress addr = socket.getInetAddress();
         this.ip = (addr != null) ? addr.getHostAddress() : "desconocida";
         this.puerto = socket.getPort();
@@ -46,5 +48,13 @@ public class ClienteConectado {
 
     public MiSocketStream getSocket() {
         return socket;
+    }
+
+    public int getUltimaSubastaRegistrada() {
+        return ultimaSubastaRegistrada;
+    }
+
+    public void setUltimaSubastaRegistrada(int idSubasta) {
+        this.ultimaSubastaRegistrada = idSubasta;
     }
 }
