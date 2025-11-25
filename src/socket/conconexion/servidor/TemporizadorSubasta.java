@@ -1,47 +1,64 @@
 package socket.conconexion.servidor;
 
 /**
- * Hilo que se encarga de esperar a que termine la duración de la subasta,
- * marcarla como finalizada y notificar a todos los clientes.
+ * Hilo que orquesta las subastas:
+ *  - Espera a que haya suficientes participantes y termine el cooldown
+ *  - Inicia la subasta
+ *  - Espera la duración configurada
+ *  - Finaliza la subasta, almacena el resultado y avisa a los clientes
  */
 public class TemporizadorSubasta implements Runnable {
 
     private final EstadoSubasta estadoSubasta;
     private final GestorClientes gestorClientes;
-    private final long duracionMillis;
 
     public TemporizadorSubasta(EstadoSubasta estadoSubasta,
-                               GestorClientes gestorClientes,
-                               long duracionMillis) {
+                               GestorClientes gestorClientes) {
         this.estadoSubasta = estadoSubasta;
         this.gestorClientes = gestorClientes;
-        this.duracionMillis = duracionMillis;
     }
 
     public void run() {
-        try {
-            Thread.sleep(duracionMillis);
-            // Marca la subasta como finalizada
-            estadoSubasta.marcarFinalizada();
+        while (true) {
+            try {
+                // Esperar hasta que se cumplan las condiciones para iniciar
+                while (!estadoSubasta.condicionesParaIniciar()) {
+                    Thread.sleep(1000);
+                }
 
-            double oferta = estadoSubasta.getOfertaMaxima();
-            String idGanador = estadoSubasta.getIdClienteGanador();
-            String aliasGanador = estadoSubasta.getAliasGanador();
+                int id = estadoSubasta.iniciarSubasta();
+                if (id < 0) {
+                    continue;
+                }
 
-            if (idGanador == null) {
-                idGanador = "SIN_GANADOR";
+                gestorClientes.broadcast("AUCTION_STARTED " + id);
+
+                long duracion = estadoSubasta.getDuracionSubastaMillis();
+                Thread.sleep(duracion);
+
+                EstadoSubasta.ResumenSubasta resumen = estadoSubasta.finalizarSubasta();
+                if (resumen != null) {
+                    String idGan = resumen.getIdGanador();
+                    String aliasGan = resumen.getAliasGanador();
+                    if (idGan == null) {
+                        idGan = "SIN_GANADOR";
+                    }
+                    if (aliasGan == null) {
+                        aliasGan = "-";
+                    }
+                    double monto = resumen.getOfertaMaxima();
+
+                    String msgFin = "AUCTION_ENDED " + resumen.getId() + " " + monto + " " +
+                            idGan + " " + aliasGan;
+                    gestorClientes.broadcast(msgFin);
+
+                    long segundosCooldown = estadoSubasta.getCooldownSeconds();
+                    gestorClientes.broadcast("NEW_AUCTION_IN " + segundosCooldown);
+                }
+            } catch (InterruptedException e) {
+                System.out.println("Temporizador de subasta interrumpido: " + e);
+                break;
             }
-            if (aliasGanador == null) {
-                aliasGanador = "-";
-            }
-
-            String mensaje = "AUCTION_ENDED " + oferta + " " +
-                    idGanador + " " + aliasGanador;
-            gestorClientes.broadcast(mensaje);
-
-            System.out.println("Subasta finalizada automáticamente por tiempo.");
-        } catch (InterruptedException e) {
-            System.out.println("Temporizador de subasta interrumpido: " + e);
         }
     }
 }

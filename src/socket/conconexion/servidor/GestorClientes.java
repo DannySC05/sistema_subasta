@@ -37,8 +37,7 @@ public class GestorClientes {
     }
 
     /**
-     * Envia el mensaje a todos los clientes conectados.
-     * Si alguno falla, se elimina de la lista.
+     * Envía el mensaje a todos los clientes conectados.
      */
     public synchronized void broadcast(String mensaje) {
         System.out.println("Broadcast: " + mensaje);
@@ -61,27 +60,30 @@ public class GestorClientes {
         }
     }
 
+    /**
+     * Envía el mensaje a todos los clientes EXCEPTO al indicado.
+     */
     public synchronized void broadcastExcept(String mensaje, ClienteConectado excluir) {
-    System.out.println("Broadcast (excepto " + excluir.getIdCliente() + "): " + mensaje);
-    Iterator<ClienteConectado> it = clientes.iterator();
-    while (it.hasNext()) {
-        ClienteConectado c = it.next();
-        if (c == excluir) {
-            continue; // no mandar al que queremos excluir
-        }
-        MiSocketStream s = c.getSocket();
-        try {
-            s.enviaMensaje(mensaje);
-        } catch (Exception ex) {
-            System.out.println("Error enviando a " + c.getIdCliente() +
-                    ". Se eliminará el cliente. Excepción: " + ex);
-            try {
-                s.close();
-            } catch (Exception e2) {
-                // ignorar
+        System.out.println("Broadcast (excepto " + excluir.getIdCliente() + "): " + mensaje);
+        Iterator<ClienteConectado> it = clientes.iterator();
+        while (it.hasNext()) {
+            ClienteConectado c = it.next();
+            if (c == excluir) {
+                continue;
             }
-            it.remove();
+            MiSocketStream s = c.getSocket();
+            try {
+                s.enviaMensaje(mensaje);
+            } catch (Exception ex) {
+                System.out.println("Error enviando a " + c.getIdCliente() +
+                        ". Se eliminará el cliente. Excepción: " + ex);
+                try {
+                    s.close();
+                } catch (Exception e2) {
+                    // ignorar
+                }
+                it.remove();
+            }
         }
     }
-}
 }

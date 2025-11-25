@@ -1,15 +1,16 @@
 package socket.conconexion.servidor;
 
+import java.util.List;
 import socket.conconexion.stream.MiSocketStream;
-
 
 /**
  * Hilo que maneja la sesión de un cliente en el contexto de la subasta.
  * Interpreta comandos:
- * - JOIN <alias>
- * - BID <monto>
- * - STATUS
- * - QUIT o "."
+ *  - JOIN <alias>
+ *  - BID <monto>
+ *  - STATUS
+ *  - HISTORY
+ *  - QUIT o "."
  */
 class HiloServidorSubasta implements Runnable {
 
@@ -33,7 +34,6 @@ class HiloServidorSubasta implements Runnable {
             while (!hecho) {
                 String mensaje = miSocketDatos.recibeMensaje();
                 if (mensaje == null) {
-                    // Cliente se desconectó abruptamente
                     hecho = true;
                     break;
                 }
@@ -63,7 +63,6 @@ class HiloServidorSubasta implements Runnable {
         }
     }
 
-
     private void procesarComando(String linea, MiSocketStream socket) {
         try {
             String[] partes = linea.split("\\s+", 2);
@@ -76,6 +75,8 @@ class HiloServidorSubasta implements Runnable {
                 manejarBid(argumentos, socket);
             } else if ("STATUS".equals(comando)) {
                 manejarStatus(socket);
+            } else if ("HISTORY".equals(comando)) {
+                manejarHistory(socket);
             } else {
                 socket.enviaMensaje("ERROR Comando no reconocido");
             }
@@ -94,13 +95,14 @@ class HiloServidorSubasta implements Runnable {
             return;
         }
         cliente.setAlias(alias);
-        String estadoTexto = estadoSubasta.estaFinalizada() ? "FINALIZADA" : "EN_CURSO";
+        estadoSubasta.registrarParticipanteParaSiguienteSubasta(cliente);
+        String estadoTexto = estadoSubasta.getEstadoTexto();
         socket.enviaMensaje("WELCOME " + cliente.getIdCliente() + " " + estadoTexto);
         System.out.println("Cliente " + cliente.getIdCliente() + " usa alias: " + alias);
     }
 
     private void manejarBid(String argMonto, MiSocketStream socket) throws Exception {
-        if (estadoSubasta.estaFinalizada()) {
+        if (!estadoSubasta.isSubastaEnCurso()) {
             socket.enviaMensaje("BID_REJECT SUBASTA_FINALIZADA");
             return;
         }
@@ -124,10 +126,7 @@ class HiloServidorSubasta implements Runnable {
                 monto, cliente.getIdCliente(), cliente.getAlias());
 
         if (esNuevaMaxima) {
-            // Respuesta directa al cliente que ofertó
             socket.enviaMensaje("BID_OK " + monto + " " + cliente.getIdCliente());
-
-            // Aviso a los demás clientes (no al mismo)
             String msgBroadcast = "NEW_BID " + monto + " " +
                     cliente.getIdCliente() + " " + cliente.getAlias();
             gestorClientes.broadcastExcept(msgBroadcast, cliente);
@@ -141,7 +140,8 @@ class HiloServidorSubasta implements Runnable {
         String idGanador = estadoSubasta.getIdClienteGanador();
         String aliasGanador = estadoSubasta.getAliasGanador();
         long segRest = estadoSubasta.getSegundosRestantes();
-        String estadoTexto = estadoSubasta.estaFinalizada() ? "FINALIZADA" : "EN_CURSO";
+        String estadoTexto = estadoSubasta.getEstadoTexto();
+        int idSubasta = estadoSubasta.getIdSubastaActual();
 
         if (idGanador == null) {
             idGanador = "SIN_GANADOR";
@@ -150,9 +150,34 @@ class HiloServidorSubasta implements Runnable {
             aliasGanador = "-";
         }
 
-        String respuesta = "CURRENT " + oferta + " " +
+        // CURRENT <idSubasta> <oferta> <idGanador> <aliasGanador> <segRest> <estado>
+        String respuesta = "CURRENT " + idSubasta + " " + oferta + " " +
                 idGanador + " " + aliasGanador + " " +
                 segRest + " " + estadoTexto;
         socket.enviaMensaje(respuesta);
+    }
+
+    private void manejarHistory(MiSocketStream socket) throws Exception {
+        List<EstadoSubasta.ResumenSubasta> hist = estadoSubasta.getHistorial();
+        if (hist.isEmpty()) {
+            socket.enviaMensaje("No hay subastas finalizadas aún.");
+            return;
+        }
+        for (EstadoSubasta.ResumenSubasta r : hist) {
+            String idGan = r.getIdGanador();
+            String aliasGan = r.getAliasGanador();
+            if (idGan == null) {
+                idGan = "SIN_GANADOR";
+            }
+            if (aliasGan == null) {
+                aliasGan = "-";
+            }
+            String montoStr = String.valueOf(r.getOfertaMaxima());
+            socket.enviaMensaje("======================================");
+            socket.enviaMensaje("  SUBASTA " + r.getId() + " FINALIZADA");
+            socket.enviaMensaje("  Ganador: " + aliasGan + " ( " + idGan + " )");
+            socket.enviaMensaje("  Oferta ganadora: " + montoStr);
+            socket.enviaMensaje("======================================");
+        }
     }
 }
